@@ -352,7 +352,9 @@ function ValueSelector({
         <NumberInput.Root
           width={{ base: "120px", md: "150px" }}
           value={value.toFixed(2)}
-          onValueChange={({ valueAsNumber }) => onValueChange(valueAsNumber)}
+          onValueChange={({ valueAsNumber }) =>
+            onValueChange(isNaN(valueAsNumber) ? 0 : valueAsNumber)
+          }
           min={min}
           max={max}
           step={0.01}
@@ -363,7 +365,9 @@ function ValueSelector({
         <Slider.Root
           width={{ base: "120px", md: "150px" }}
           value={[value]}
-          onValueChange={({ value }) => onValueChange(value[0])}
+          onValueChange={({ value }) =>
+            onValueChange(isNaN(value[0]) ? 0 : value[0])
+          }
           min={min}
           max={max}
           step={0.01}
