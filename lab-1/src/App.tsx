@@ -105,7 +105,7 @@ function hsvToRgb({ h, s, v }: HSV) {
     g = 0,
     b = 0;
 
-  const h_ = h / 360;
+  const h_ = h / 360 === 1 ? 0 : h / 360;
   const s_ = s / 100;
   const v_ = v / 100;
 

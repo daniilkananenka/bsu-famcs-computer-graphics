@@ -2,7 +2,7 @@
 
 ## RGB
 
-![RGB Cube](https://ru.wikipedia.org/wiki/%D0%A4%D0%B0%D0%B9%D0%BB:Bt.709_RGB_color_cube.png)
+<img alt="RGB Cube" src="https://upload.wikimedia.org/wikipedia/commons/1/13/Bt.709_RGB_color_cube.png" width="200"></img>
 
 - Используется в мониторах, экранах
 - Аппаратно-зависимая
@@ -10,7 +10,7 @@
 
 ## CMYK
 
-![CMYK Cube](https://ru.wikipedia.org/wiki/%D0%A4%D0%B0%D0%B9%D0%BB:Bt.709_RGB_color_cube.png)
+<img alt="CMYK Cube" src="https://upload.wikimedia.org/wikipedia/commons/1/13/Bt.709_RGB_color_cube.png" width="200"></img>
 
 - Используется в типографии. K - черный цвет, нужен т.к. не всегда при смешивании 3х красок получается идеальный черный, да и одна черная краска дешевле 3х цветных
 - Аппаратно-зависимая
@@ -19,7 +19,7 @@
 
 ## HSV
 
-![HSV Conus](https://colorizer.org/img/hsv.png)
+<img alt="CMYK Cube" src="https://colorizer.org/img/hsv.png" width="200"></img>
 
 - Hue - тон (360 градусов), Saturation - насыщенность, Value - значение (яркость)
 - Интуитивная
