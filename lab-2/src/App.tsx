@@ -1,4 +1,5 @@
 import ElementOperations from "./ElementOperations";
+import GlobalThreshold from "./GlobalThreshold";
 import LinearContrast from "./LinearContract";
 
 function App() {
@@ -6,6 +7,7 @@ function App() {
     <>
       <ElementOperations />
       <LinearContrast />
+      <GlobalThreshold />
     </>
   );
 }
