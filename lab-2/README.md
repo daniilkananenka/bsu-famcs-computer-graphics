@@ -1,73 +1,41 @@
-# React + TypeScript + Vite
+# Лабораторная 2
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Замечание
 
-Currently, two official plugins are available:
+Все операции производятся с яркостью пикселей, поэтому все результаты представлены исключительно в виде черно-белых картинок
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Поэлементные операции
 
-## React Compiler
+Производятся по отдельности с каждым из пикселей. К поэлементным операциям относятся:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+1. Сложение - $f(m, n) + χ\ (χ \neq 0)$
+2. Негатив - $255 - f(m, n)$
+3. Умножение - $f(m, n) * α\ (α \neq 1)$
+4. Степень - $255 * \dfrac{f(m, n)}{f_{max}}^{γ}\ (γ \neq 1)$
+5. Логарифм - $255 * \dfrac{log(1 + f(m, n))}{log (1 + f_{max})}$
 
-## Expanding the ESLint configuration
+Для демонстрации можно взять любую картинку
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Линейное контрастирование
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+Расширяет диапазон яркостей. Применяется к малоконтрастным изображениям.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+- Идея: находится диапазон яркостей изображения $f_{min}$ и $f_{max}$, а потом по специальной формуле производится расчет для каждого пикселя
+- Формула: $\dfrac{255}{f_{max} - f_{min}}(f(m, n) - f_{min})$ - для ситуации когда допустимы диапазон $[0, 255]$
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+Для демонстрации подойдет малоконтрастное (затуманенное) изображение
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Глобальная пороговая обработка
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Бинаризует изображение. Основная задача обработки - отделить объект от фона на изображении. Реализованы 2 метода:
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+1. Ручной выбор порога. Позволяет вручную установить порог и выбрать оптимальный вариант
+2. Алгоритм Оцу. Атоматический выбор оптимального порога. Плохо работает для изображений с градиентом и шумом
+
+Как работает алгоритм Оцу:
+
+1. Он сторит гистограмму изображения - коичество пикселей каждой яркости
+2. Проходится по всем порогам - от 0 до 255
+3. Считает количество пикселей ниже порога (условный фон), выше порога (условный объект), и среднюю яркость фона и объекта
+4. Вычисляем межклассовую дисперсию $w_b * w_f * (μ_b - μ_f)^2$
+5. Ищем порог с максимальной дисперсией - он будет оптимальным
