@@ -289,7 +289,7 @@ const Raster: React.FC = () => {
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
       <Typography variant="h4" gutterBottom align="center">
-        Лабораторная: Базовые алгоритмы растеризации
+        Растеризация
       </Typography>
 
       <Grid container spacing={3}>
