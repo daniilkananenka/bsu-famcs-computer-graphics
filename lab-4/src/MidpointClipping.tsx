@@ -19,7 +19,6 @@ const MidpointClipping: React.FC = () => {
   const [segments, setSegments] = useState<LineSegment[]>([]);
   const [clipWindow, setClipWindow] = useState<Rect | null>(null);
 
-  // Вычисление кода точки для прямоугольного окна
   const computeOutCode = (p: Point, rect: Rect) => {
     let code = INSIDE;
     if (p.x < rect.min.x) code |= LEFT;
@@ -29,31 +28,25 @@ const MidpointClipping: React.FC = () => {
     return code;
   };
 
-  // Рекурсивный алгоритм средней точки
   const midpointSubdivision = (
     p1: Point,
     p2: Point,
     rect: Rect,
     depth: number = 0
   ): LineSegment[] => {
-    // Ограничение глубины рекурсии для предотвращения зависания (точность)
     if (depth > 10) return [{ p1, p2 }];
 
     const code1 = computeOutCode(p1, rect);
     const code2 = computeOutCode(p2, rect);
 
-    // 1. Тривиальное принятие: оба конца внутри
     if ((code1 | code2) === 0) {
       return [{ p1, p2 }];
     }
 
-    // 2. Тривиальное отбрасывание: оба конца снаружи с одной стороны
     if ((code1 & code2) !== 0) {
       return [];
     }
 
-    // 3. Деление пополам (Subdivision)
-    // Если отрезок очень маленький, считаем его видимым (точность пикселя)
     if (Math.abs(p1.x - p2.x) < 0.5 && Math.abs(p1.y - p2.y) < 0.5) {
       return [{ p1, p2 }];
     }
@@ -94,8 +87,6 @@ const MidpointClipping: React.FC = () => {
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
 
-    // Настройка масштаба и координат
-    // Добавляем отступы вокруг окна для наглядности
     const padding = 50;
     const worldWidth = (clipWindow.max.x - clipWindow.min.x) * 2;
     const worldHeight = (clipWindow.max.y - clipWindow.min.y) * 2;
@@ -106,7 +97,7 @@ const MidpointClipping: React.FC = () => {
 
     const scaleX = (canvas.width - padding * 2) / worldWidth;
     const scaleY = (canvas.height - padding * 2) / worldHeight;
-    const scale = Math.min(scaleX, scaleY); // Сохраняем пропорции
+    const scale = Math.min(scaleX, scaleY);
 
     // Функция перевода мировых координат в экранные
     // Y переворачиваем, так как на Canvas Y растет вниз
@@ -118,7 +109,7 @@ const MidpointClipping: React.FC = () => {
     // Очистка
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 1. Рисуем сетку / оси (опционально)
+    // Сетка
     ctx.strokeStyle = "#e0e0e0";
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -134,7 +125,7 @@ const MidpointClipping: React.FC = () => {
     ctx.lineTo(p3.x, p3.y);
     ctx.stroke();
 
-    // 2. Рисуем отсекающее окно (Синий)
+    // Отсекающее окно
     const winMin = toScreen(clipWindow.min);
     const winMax = toScreen(clipWindow.max);
 
@@ -147,7 +138,7 @@ const MidpointClipping: React.FC = () => {
       Math.abs(winMax.y - winMin.y)
     );
 
-    // 3. Рисуем исходные отрезки (Серый/Красный полупрозрачный)
+    // Исходные отрезки
     ctx.strokeStyle = "rgba(255, 0, 0, 0.3)";
     ctx.lineWidth = 1;
     segments.forEach((seg) => {
@@ -159,7 +150,7 @@ const MidpointClipping: React.FC = () => {
       ctx.stroke();
     });
 
-    // 4. Вычисляем и рисуем видимые части алгоритмом средней точки (Зеленый)
+    // Результат
     ctx.strokeStyle = "green";
     ctx.lineWidth = 3;
 

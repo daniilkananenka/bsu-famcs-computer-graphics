@@ -13,8 +13,6 @@ const PolygonClipping: React.FC = () => {
   const [polygon, setPolygon] = useState<Point[]>([]);
   const [bounds, setBounds] = useState<Rect | null>(null);
 
-  // === Математические утилиты ===
-
   const crossProduct = (a: Point, b: Point, p: Point) => {
     return (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
   };
@@ -64,7 +62,6 @@ const PolygonClipping: React.FC = () => {
     return false;
   };
 
-  // === Алгоритм Средней Точки ===
   const clipMidpointRecursive = (
     p1: Point,
     p2: Point,
@@ -83,17 +80,14 @@ const PolygonClipping: React.FC = () => {
     const p1In = isInside(p1, poly);
     const p2In = isInside(p2, poly);
 
-    // 1. Тривиальное принятие
     if (p1In && p2In) {
       return [{ p1, p2 }];
     }
 
-    // 2. Тривиальное отбрасывание
     if (isTriviallyOutside(p1, p2, poly)) {
       return [];
     }
 
-    // 3. Деление
     const mid: Point = {
       x: (p1.x + p2.x) / 2,
       y: (p1.y + p2.y) / 2,
@@ -165,7 +159,7 @@ const PolygonClipping: React.FC = () => {
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 1. Рисуем многоугольник (Синий, как окно в Части 1)
+    // Многоугольник
     ctx.fillStyle = "rgba(0, 0, 255, 0.1)";
     ctx.strokeStyle = "blue";
     ctx.lineWidth = 2;
@@ -180,7 +174,7 @@ const PolygonClipping: React.FC = () => {
     ctx.fill();
     ctx.stroke();
 
-    // 2. Исходные отрезки (Полупрозрачный красный, как в Части 1)
+    // Исходные отрезки
     ctx.strokeStyle = "rgba(255, 0, 0, 0.3)";
     ctx.lineWidth = 1;
     segments.forEach((seg) => {
@@ -192,7 +186,7 @@ const PolygonClipping: React.FC = () => {
       ctx.stroke();
     });
 
-    // 3. Результат (Зеленый, как в Части 1)
+    // Результат
     ctx.strokeStyle = "green";
     ctx.lineWidth = 3;
 

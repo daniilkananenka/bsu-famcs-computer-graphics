@@ -19,11 +19,18 @@ import {
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 
-type AlgorithmType = "step" | "dda" | "bresenham_line" | "bresenham_circle";
+type AlgorithmType =
+  | "step"
+  | "dda"
+  | "bresenham_line"
+  | "bresenham_circle"
+  | "wu"
+  | "castle_piteway";
 
 interface Point {
   x: number;
   y: number;
+  alpha?: number; // Прозрачность для алгоритма Ву (0..1)
 }
 
 interface DrawResult {
@@ -31,51 +38,50 @@ interface DrawResult {
   time: number;
 }
 
+// Вспомогательные функции для Ву
+const ipart = (x: number) => Math.floor(x);
+const round = (x: number) => Math.round(x);
+const fpart = (x: number) => x - Math.floor(x);
+const rfpart = (x: number) => 1 - fpart(x);
+
 const Algorithms = {
-  // 1. Пошаговый алгоритм (y = kx + b)
+  // 1. Пошаговый
   stepByStep: (p1: Point, p2: Point): Point[] => {
     const pixels: Point[] = [];
     const dx = p2.x - p1.x;
     const dy = p2.y - p1.y;
 
-    // Идем по X
-    if (dx === 0) return [{ x: p1.x, y: p1.y }]; // Точка
+    if (dx === 0) return [{ ...p1, alpha: 1 }];
     const k = dy / dx;
     const b = p1.y - k * p1.x;
     const start = Math.min(p1.x, p2.x);
     const end = Math.max(p1.x, p2.x);
     for (let x = start; x <= end; x++) {
-      const y = Math.round(k * x + b);
-      pixels.push({ x, y });
+      pixels.push({ x, y: Math.round(k * x + b), alpha: 1 });
     }
 
-    // Можно добавить дополнительный цикл по Y, для случая когда линия слишком крутая и dx < dy
-
     // if (Math.abs(dx) >= Math.abs(dy)) {
-    //   if (dx === 0) return [{ x: p1.x, y: p1.y }]; // Точка
+    //   if (dx === 0) return [{ ...p1, alpha: 1 }];
     //   const k = dy / dx;
     //   const b = p1.y - k * p1.x;
     //   const start = Math.min(p1.x, p2.x);
     //   const end = Math.max(p1.x, p2.x);
     //   for (let x = start; x <= end; x++) {
-    //     const y = Math.round(k * x + b);
-    //     pixels.push({ x, y });
+    //     pixels.push({ x, y: Math.round(k * x + b), alpha: 1 });
     //   }
     // } else {
-    //   // Идем по Y (если наклон крутой)
     //   const k = dx / dy;
     //   const b = p1.x - k * p1.y;
     //   const start = Math.min(p1.y, p2.y);
     //   const end = Math.max(p1.y, p2.y);
     //   for (let y = start; y <= end; y++) {
-    //     const x = Math.round(k * y + b);
-    //     pixels.push({ x, y });
+    //     pixels.push({ x: Math.round(k * y + b), y, alpha: 1 });
     //   }
     // }
     return pixels;
   },
 
-  // 2. ЦДА (Цифровой Дифференциальный Анализатор)
+  // 2. ЦДА
   dda: (p1: Point, p2: Point): Point[] => {
     const pixels: Point[] = [];
     const dx = p2.x - p1.x;
@@ -89,20 +95,20 @@ const Algorithms = {
     let y = p1.y;
 
     for (let i = 0; i <= steps; i++) {
-      pixels.push({ x: Math.round(x), y: Math.round(y) });
+      pixels.push({ x: Math.round(x), y: Math.round(y), alpha: 1 });
       x += xInc;
       y += yInc;
     }
     return pixels;
   },
 
-  // 3. Брезенхем (Линия) - только целочисленная арифметика
+  // 3. Брезенхем (Линия)
   bresenhamLine: (p1: Point, p2: Point): Point[] => {
     const pixels: Point[] = [];
-    let x0 = p1.x;
-    let y0 = p1.y;
-    const x1 = p2.x;
-    const y1 = p2.y;
+    let x0 = Math.round(p1.x);
+    let y0 = Math.round(p1.y);
+    const x1 = Math.round(p2.x);
+    const y1 = Math.round(p2.y);
 
     const dx = Math.abs(x1 - x0);
     const dy = Math.abs(y1 - y0);
@@ -111,7 +117,7 @@ const Algorithms = {
     let err = dx - dy;
 
     while (true) {
-      pixels.push({ x: x0, y: y0 });
+      pixels.push({ x: x0, y: y0, alpha: 1 });
       if (x0 === x1 && y0 === y1) break;
       const e2 = 2 * err;
       if (e2 > -dy) {
@@ -133,24 +139,22 @@ const Algorithms = {
     let y = radius;
     let d = 3 - 2 * radius;
 
-    const addSymmetricPoints = (
-      xc: number,
-      yc: number,
-      x: number,
-      y: number
-    ) => {
-      pixels.push({ x: xc + x, y: yc + y });
-      pixels.push({ x: xc - x, y: yc + y });
-      pixels.push({ x: xc + x, y: yc - y });
-      pixels.push({ x: xc - x, y: yc - y });
-      pixels.push({ x: xc + y, y: yc + x });
-      pixels.push({ x: xc - y, y: yc + x });
-      pixels.push({ x: xc + y, y: yc - x });
-      pixels.push({ x: xc - y, y: yc - x });
+    const addPoints = (xc: number, yc: number, x: number, y: number) => {
+      const pts = [
+        { x: xc + x, y: yc + y, alpha: 1 },
+        { x: xc - x, y: yc + y, alpha: 1 },
+        { x: xc + x, y: yc - y, alpha: 1 },
+        { x: xc - x, y: yc - y, alpha: 1 },
+        { x: xc + y, y: yc + x, alpha: 1 },
+        { x: xc - y, y: yc + x, alpha: 1 },
+        { x: xc + y, y: yc - x, alpha: 1 },
+        { x: xc - y, y: yc - x, alpha: 1 },
+      ];
+      pixels.push(...pts);
     };
 
     while (y >= x) {
-      addSymmetricPoints(center.x, center.y, x, y);
+      addPoints(center.x, center.y, x, y);
       x++;
       if (d > 0) {
         y--;
@@ -161,23 +165,169 @@ const Algorithms = {
     }
     return pixels;
   },
+
+  // 5. Алгоритм Ву (Сглаживание)
+  wuLine: (p1: Point, p2: Point): Point[] => {
+    const pixels: Point[] = [];
+    let x0 = p1.x;
+    let y0 = p1.y;
+    let x1 = p2.x;
+    let y1 = p2.y;
+
+    const steep = Math.abs(y1 - y0) > Math.abs(x1 - x0);
+
+    if (steep) {
+      [x0, y0] = [y0, x0];
+      [x1, y1] = [y1, x1];
+    }
+    if (x0 > x1) {
+      [x0, x1] = [x1, x0];
+      [y0, y1] = [y1, y0];
+    }
+
+    const dx = x1 - x0;
+    const dy = y1 - y0;
+    const gradient = dx === 0 ? 1 : dy / dx;
+
+    let xend = round(x0);
+    let yend = y0 + gradient * (xend - x0);
+    let xgap = rfpart(x0 + 0.5);
+    const xpxl1 = xend;
+    const ypxl1 = ipart(yend);
+
+    const plot = (x: number, y: number, c: number) => {
+      if (steep) pixels.push({ x: y, y: x, alpha: c });
+      else pixels.push({ x: x, y: y, alpha: c });
+    };
+
+    plot(xpxl1, ypxl1, rfpart(yend) * xgap);
+    plot(xpxl1, ypxl1 + 1, fpart(yend) * xgap);
+
+    let intery = yend + gradient;
+
+    xend = round(x1);
+    yend = y1 + gradient * (xend - x1);
+    xgap = fpart(x1 + 0.5);
+    const xpxl2 = xend;
+    const ypxl2 = ipart(yend);
+
+    plot(xpxl2, ypxl2, rfpart(yend) * xgap);
+    plot(xpxl2, ypxl2 + 1, fpart(yend) * xgap);
+
+    for (let x = xpxl1 + 1; x < xpxl2; x++) {
+      plot(x, ipart(intery), rfpart(intery));
+      plot(x, ipart(intery) + 1, fpart(intery));
+      intery += gradient;
+    }
+
+    return pixels;
+  },
+
+  // 6. Алгоритм Кастла-Питвея
+  castlePiteway: (p1: Point, p2: Point): Point[] => {
+    // 0 = s (straight - по основной оси)
+    // 1 = d (diagonal - по диагонали)
+
+    const pixels: Point[] = [
+      { x: Math.round(p1.x), y: Math.round(p1.y), alpha: 1 },
+    ];
+
+    let x = Math.round(p1.x);
+    let y = Math.round(p1.y);
+
+    const dx = Math.round(p2.x - p1.x);
+    const dy = Math.round(p2.y - p1.y);
+
+    const signX = Math.sign(dx);
+    const signY = Math.sign(dy);
+
+    let a = Math.abs(dx);
+    let b = Math.abs(dy);
+    let swapped = false;
+
+    // Приводим задачу к первому октанту (0 <= b <= a)
+    // Если наклон крутой (> 1), меняем роли осей
+    if (b > a) {
+      [a, b] = [b, a];
+      swapped = true;
+    }
+
+    // Если b=0 (горизонтальная или вертикальная линия)
+    if (b === 0) {
+      for (let i = 0; i < a; i++) {
+        x += swapped ? 0 : signX;
+        y += swapped ? signY : 0;
+        pixels.push({ x, y, alpha: 1 });
+      }
+      return pixels;
+    }
+
+    // Если a=b (диагональ)
+    if (a === b) {
+      for (let i = 0; i < a; i++) {
+        x += signX;
+        y += signY;
+        pixels.push({ x, y, alpha: 1 });
+      }
+      return pixels;
+    }
+
+    let y_alg = b;
+    let x_alg = a - b;
+
+    let m1: number[] = [0];
+    let m2: number[] = [1];
+
+    while (x_alg !== y_alg) {
+      if (x_alg > y_alg) {
+        x_alg = x_alg - y_alg;
+        // m2 = m1 + m2
+        m2 = [...m1, ...m2];
+      } else {
+        y_alg = y_alg - x_alg;
+        // m1 = m2 + m1
+        m1 = [...m2, ...m1];
+      }
+    }
+
+    const finalSequence = [...m2, ...m1];
+
+    // Повторить эту последовательность x_alg раз
+    const repeatCount = x_alg;
+
+    for (let i = 0; i < repeatCount; i++) {
+      for (const move of finalSequence) {
+        if (move === 0) {
+          // Шаг 's' (по основной оси)
+          if (!swapped) {
+            x += signX; // Основная ось X
+          } else {
+            y += signY; // Основная ось Y
+          }
+        } else {
+          // Шаг 'd' (диагональный)
+          x += signX;
+          y += signY;
+        }
+        pixels.push({ x, y, alpha: 1 });
+      }
+    }
+
+    return pixels;
+  },
 };
 
-// --- Основной Компонент ---
-
 const Raster: React.FC = () => {
-  // Состояния
-  const [scale, setScale] = useState<number>(20); // Пикселей на единицу координат
+  const [scale, setScale] = useState<number>(20);
   const [algorithm, setAlgorithm] = useState<AlgorithmType>("bresenham_line");
-  const [p1, setP1] = useState<Point>({ x: -5, y: -5 });
-  const [p2, setP2] = useState<Point>({ x: 10, y: 8 });
+  const [p1, setP1] = useState<Point>({ x: -8, y: -5 });
+  const [p2, setP2] = useState<Point>({ x: 8, y: 2 });
   const [radius, setRadius] = useState<number>(10);
   const [lastResult, setLastResult] = useState<DrawResult | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Основная функция отрисовки
   const draw = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -186,21 +336,15 @@ const Raster: React.FC = () => {
 
     const width = canvas.width;
     const height = canvas.height;
-
-    // Центр координат (сдвиг для (0,0) в центр экрана)
     const centerX = Math.floor(width / 2);
     const centerY = Math.floor(height / 2);
 
-    // 1. Очистка
     ctx.clearRect(0, 0, width, height);
 
-    // 2. Рисуем сетку
+    // Рисуем сетку
     ctx.strokeStyle = "#e0e0e0";
     ctx.lineWidth = 1;
     ctx.beginPath();
-
-    // Вертикальные линии
-    // Начинаем от центра и идем в стороны, чтобы сетка совпадала с (0,0)
     for (let x = centerX; x < width; x += scale) {
       ctx.moveTo(x, 0);
       ctx.lineTo(x, height);
@@ -209,8 +353,6 @@ const Raster: React.FC = () => {
       ctx.moveTo(x, 0);
       ctx.lineTo(x, height);
     }
-
-    // Горизонтальные линии
     for (let y = centerY; y < height; y += scale) {
       ctx.moveTo(0, y);
       ctx.lineTo(width, y);
@@ -221,67 +363,68 @@ const Raster: React.FC = () => {
     }
     ctx.stroke();
 
-    // 4. Рисуем Оси
+    // Рисуем Оси
     ctx.strokeStyle = "#000";
     ctx.lineWidth = 2;
     ctx.beginPath();
-    // Ось X
     ctx.moveTo(0, centerY);
     ctx.lineTo(width, centerY);
-    // Ось Y
     ctx.moveTo(centerX, 0);
     ctx.lineTo(centerX, height);
     ctx.stroke();
 
-    // Подписи осей
+    // Подписи
     ctx.fillStyle = "#000";
     ctx.font = "12px Arial";
     ctx.fillText("X", width - 15, centerY - 5);
     ctx.fillText("Y", centerX + 5, 15);
     ctx.fillText("(0,0)", centerX + 5, centerY + 15);
 
-    // 5. Выполняем алгоритм
+    // Выполняем алгоритм
     const startTime = performance.now();
     let pixels: Point[] = [];
 
-    if (algorithm === "bresenham_circle") {
-      pixels = Algorithms.bresenhamCircle(p1, radius);
-    } else if (algorithm === "bresenham_line") {
-      pixels = Algorithms.bresenhamLine(p1, p2);
-    } else if (algorithm === "dda") {
-      pixels = Algorithms.dda(p1, p2);
-    } else if (algorithm === "step") {
-      pixels = Algorithms.stepByStep(p1, p2);
+    switch (algorithm) {
+      case "bresenham_circle":
+        pixels = Algorithms.bresenhamCircle(p1, radius);
+        break;
+      case "bresenham_line":
+        pixels = Algorithms.bresenhamLine(p1, p2);
+        break;
+      case "dda":
+        pixels = Algorithms.dda(p1, p2);
+        break;
+      case "step":
+        pixels = Algorithms.stepByStep(p1, p2);
+        break;
+      case "wu":
+        pixels = Algorithms.wuLine(p1, p2);
+        break;
+      case "castle_piteway":
+        pixels = Algorithms.castlePiteway(p1, p2);
+        break;
     }
     const endTime = performance.now();
 
-    setLastResult({
-      pixels,
-      time: endTime - startTime,
-    });
+    setLastResult({ pixels, time: endTime - startTime });
 
-    // 6. Рисуем пиксели
-    // Пиксель (x, y) - это квадрат.
-    // В Canvas Y растет вниз, в математике вверх. Инвертируем Y.
-    ctx.fillStyle = "#1976d2"; // Primary color
-
+    // Рисуем пиксели
     pixels.forEach((p) => {
       const screenX = centerX + p.x * scale;
-      const screenY = centerY - p.y * scale - scale;
+      const screenY = centerY - p.y * scale - scale; // Сдвиг для (0,0) в левый угол клетки
 
-      // Рисуем квадрат чуть меньше сетки, чтобы было видно границы
+      const alpha = p.alpha !== undefined ? p.alpha : 1;
+
+      ctx.fillStyle = `rgba(25, 118, 210, ${alpha})`;
       ctx.fillRect(screenX + 1, screenY + 1, scale - 2, scale - 2);
     });
   };
 
-  // Перерисовка при изменении параметров
   useEffect(() => {
-    // Подгоняем размер canvas под контейнер
     if (containerRef.current && canvasRef.current) {
       canvasRef.current.width = containerRef.current.clientWidth;
-      canvasRef.current.height = 500; // Фиксированная высота
+      canvasRef.current.height = 500;
     }
-
     draw();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [p1, p2, radius, algorithm, scale]);
@@ -289,7 +432,7 @@ const Raster: React.FC = () => {
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
       <Typography variant="h4" gutterBottom align="center">
-        Растеризация
+        Алгоритмы Растеризации
       </Typography>
 
       <Grid container spacing={3}>
@@ -313,13 +456,16 @@ const Raster: React.FC = () => {
                 <MenuItem value="bresenham_circle">
                   Брезенхем (Окружность)
                 </MenuItem>
+                <MenuItem value="wu">Алгоритм Ву (Сглаживание)</MenuItem>
+                <MenuItem value="castle_piteway">
+                  Алгоритм Кастла-Питвея
+                </MenuItem>
               </Select>
             </FormControl>
 
             <Typography variant="subtitle2" sx={{ mt: 1 }}>
               Координаты
             </Typography>
-
             <Box sx={{ display: "flex", gap: 1 }}>
               <TextField
                 label="X1 / Xc"
@@ -367,7 +513,7 @@ const Raster: React.FC = () => {
             <Typography gutterBottom>Масштаб сетки</Typography>
             <Slider
               value={scale}
-              min={2}
+              min={5}
               max={50}
               onChange={(_, val) => setScale(val as number)}
               valueLabelDisplay="auto"
@@ -384,22 +530,16 @@ const Raster: React.FC = () => {
 
             {lastResult && (
               <Alert icon={<AccessTimeIcon />} severity="info" sx={{ mt: 2 }}>
-                Время выполнения:{" "}
-                <strong>{lastResult.time.toFixed(4)} мс</strong>
-                <br />
-                Пикселей отрисовано: {lastResult.pixels.length}
+                Время: <strong>{lastResult.time.toFixed(4)} мс</strong> |
+                Пикселей: {lastResult.pixels.length}
               </Alert>
             )}
 
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ mt: 2, display: "block" }}
-            >
-              <strong>Справка:</strong> Целочисленные координаты привязаны к
-              сетке так, что центр координаты (x,y) соответствует квадрату на
-              экране. Ось Y направлена вверх. Сетка помогает визуализировать
-              дискретность растра.
+            <Typography variant="caption" color="text.secondary">
+              {algorithm === "wu" &&
+                "Алгоритм Ву использует прозрачность пикселей (Anti-aliasing)."}
+              {algorithm === "castle_piteway" &&
+                "Алгоритм Кастла-Питвея строит линию, используя свойства НОД (алгоритм Евклида) для генерации паттерна шагов 's' и 'd'."}
             </Typography>
           </Paper>
         </Grid>
@@ -412,11 +552,7 @@ const Raster: React.FC = () => {
             >
               <canvas
                 ref={canvasRef}
-                style={{
-                  display: "block",
-                  backgroundColor: "#fafafa",
-                  cursor: "crosshair",
-                }}
+                style={{ display: "block", backgroundColor: "#fafafa" }}
               />
             </CardContent>
           </Card>
